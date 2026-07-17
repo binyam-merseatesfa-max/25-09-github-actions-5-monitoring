@@ -38,7 +38,7 @@ jobs:
             echo "${{secrets.SSH_PRIVATE_KEY_101}}" > ~/.ssh/myKeys
             chmod 600 ~/.ssh/myKeys
 
-      - name: Configure known_hosts
+      - name: Configure known_hosts (typ1)
         run: |
           FAILED_IPS=()
 
@@ -73,6 +73,52 @@ jobs:
             ssh -i ~/.ssh/myKeys ubuntu@$ip "sudo usermod -aG docker ubuntu"
             done
 
+      - name: install -p 9100:9100 prom/node-exporter, and website on -p 80
+            for ip in $(terraform output -json public_ips_typ1 | jq -r ".[]"); do
+            ssh -i ~/.ssh/myKeys ubuntu@$ip "docker run -d -p 9100:9100 prom/node-exporter"
+            scp -i ~/.ssh/myKeys -r Frontend ubuntu@$ip:/home/ubuntu/
+            ssh -i ~/.ssh/myKeys ubuntu@$ip "docker build -t bt501-frontend-image /home/ubuntu/Frontend"
+            ssh -i ~/.ssh/myKeys ubuntu@$ip "docker stop bt501-fe-container || true"
+            ssh -i ~/.ssh/myKeys ubuntu@$ip "docker rm bt501-fe-container || true"
+            ssh -i ~/.ssh/myKeys ubuntu@$ip "docker run -d -p 80:80 --name bt501-fe-container bt501-frontend-image"           
+            done
+
+
+
+      - name: Configure known_hosts (typ2)
+        run: |
+          FAILED_IPS=()
+
+          for ip in $(terraform output -json public_ips_typ2 | jq -r ".[]"); do
+            echo "Waiting for SSH on $ip..."
+            success=false
+            for i in {1..10}; do
+              if timeout 5 ssh-keyscan -H "$ip" >> ~/.ssh/known_hosts 2>/dev/null; then
+                echo "  $ip is ready"
+                success=true
+                break
+              fi
+              echo "  retry $i/10..."
+              sleep 5
+            done
+
+            if [ "$success" = false ]; then
+              echo "::error::Could not reach $ip after 10 attempts"
+              FAILED_IPS+=("$ip")
+            fi
+          done
+
+          if [ ${#FAILED_IPS[@]} -gt 0 ]; then
+            echo "The following IPs were unreachable: ${FAILED_IPS[*]}"
+            exit 1
+          fi
+
+      - name: install docker on ec2 & extend user recht on Docker, on_typ2
+        run: |
+            for ip in $(terraform output -json public_ips_typ1 | jq -r ".[]"); do
+            ssh -i ~/.ssh/myKeys ubuntu@$ip "sudo apt update && sudo apt install docker.io -y"
+            ssh -i ~/.ssh/myKeys ubuntu@$ip "sudo usermod -aG docker ubuntu"
+            done
 
 
   Terraform-say-hi-bye:
