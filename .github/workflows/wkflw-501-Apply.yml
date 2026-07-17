@@ -125,9 +125,6 @@ jobs:
             exit 1
           fi
 
-
-
-
       - name: install docker on ec2 & extend user recht on Docker, on_typ2
         run: |
             for ip in $(terraform output -json public_ips_typ2 | jq -r ".[]"); do

@@ -29,7 +29,7 @@ variable "sg_typ1" {
 }
 
 variable "sg_typ2" {
-  description = "The EC2 instance count (typ1)"
+  description = "The EC2 instance count (typ2)"
   type        = string
   default     = "sg-04ed9bebdb357bf1c"
 }
