@@ -109,11 +109,43 @@ jobs:
 
       - name: install docker on ec2 & extend user recht on Docker, on_typ2
         run: |
-            for ip in $(terraform output -json public_ips_typ1 | jq -r ".[]"); do
+            for ip in $(terraform output -json public_ips_typ2 | jq -r ".[]"); do
             ssh -i ~/.ssh/myKeys ubuntu@$ip "sudo apt update && sudo apt install docker.io -y"
             ssh -i ~/.ssh/myKeys ubuntu@$ip "sudo usermod -aG docker ubuntu"
             done
 
+      - name: create prometheus.yml on ec2 instances, on_typ2
+        run: |
+            for ip in $(terraform output -json public_ips_typ2 | jq -r ".[]"); do
+              sed "s/{{TARGET_IP}}/$ip/g" files/prometheus.yml.tpl > /tmp/prometheus_$ip.yml
+              scp -i ~/.ssh/myKeys /tmp/prometheus_$ip.yml ubuntu@$ip:/home/ubuntu/prometheus.yml
+            done
+
+      - name: create prometheus.yml with all node_exporter targets, on_typ2
+        run: |
+            targets=""
+            for ip in $(terraform output -json public_ips_typ1 | jq -r ".[]"); do
+              targets="$targets\"$ip:9100\", "
+            done
+            targets="${targets%, }"
+
+            sed "s|\${node_exporter_targets}|$targets|" files/prometheus.yml.tpl > /tmp/prometheus.yml
+
+            for ip in $(terraform output -json public_ips_typ2 | jq -r ".[]"); do
+              scp -i ~/.ssh/myKeys /tmp/prometheus.yml ubuntu@$ip:/home/ubuntu/prometheus.yml
+            done
+
+      - name: run prometheus container on typ2
+        run: |
+            for ip in $(terraform output -json public_ips_typ2 | jq -r ".[]"); do
+              ssh -i ~/.ssh/myKeys ubuntu@$ip "docker rm -f prometheus || true; docker run -d --name prometheus -p 9090:9090 -v /home/ubuntu/prometheus.yml:/etc/prometheus/prometheus.yml prom/prometheus"
+            done
+
+      - name: install & run grafana on typ2
+        run: |
+            for ip in $(terraform output -json public_ips_typ2 | jq -r ".[]"); do
+              ssh -i ~/.ssh/myKeys ubuntu@$ip "docker rm -f grafana || true; docker run -d --name grafana -p 3000:3000 -v grafana-data:/var/lib/grafana grafana/grafana-enterprise"
+            done
 
   Terraform-say-hi-bye:
         runs-on: ubuntu-latest
