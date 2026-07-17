@@ -73,9 +73,10 @@ jobs:
             ssh -i ~/.ssh/myKeys ubuntu@$ip "sudo usermod -aG docker ubuntu"
             done
 
-      - name: install -p 9100:9100 prom/node-exporter
+      - name: install & run node-exporter on typ1
+        run: |
             for ip in $(terraform output -json public_ips_typ1 | jq -r ".[]"); do
-            ssh -i ~/.ssh/myKeys ubuntu@$ip "docker run -d -p 9100:9100 prom/node-exporter"
+              ssh -i ~/.ssh/myKeys ubuntu@$ip "docker rm -f node-exporter || true; docker run -d --name node-exporter -p 9100:9100 prom/node-exporter"
             done
 
 
@@ -106,6 +107,9 @@ jobs:
             echo "The following IPs were unreachable: ${FAILED_IPS[*]}"
             exit 1
           fi
+
+
+
 
       - name: install docker on ec2 & extend user recht on Docker, on_typ2
         run: |
