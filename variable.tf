@@ -7,7 +7,7 @@ variable "instance_type_typ1" {
 variable "instance_count_typ1" {
   description = "The EC2 instance count (typ1)"
   type        = number
-  default     = 1
+  default     = 3
 }
 
 variable "instance_type_typ2" {
@@ -19,5 +19,5 @@ variable "instance_type_typ2" {
 variable "instance_count_typ2" {
   description = "The EC2 instance count (typ2)"
   type        = number
-  default     = 1
+  default     = 2
 }  
