@@ -42,7 +42,7 @@ jobs:
         run: |
           FAILED_IPS=()
 
-          for ip in $(terraform output -json public_ips | jq -r ".[]"); do
+          for ip in $(terraform output -json public_ips_typ1 | jq -r ".[]"); do
             echo "Waiting for SSH on $ip..."
             success=false
             for i in {1..10}; do
