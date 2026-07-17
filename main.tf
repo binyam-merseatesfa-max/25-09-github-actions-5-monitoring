@@ -7,9 +7,9 @@ resource "aws_instance" "instanz_typ1" {
   ami                    = "ami-0303e2e4a29f041a3"
   instance_type          = var.instance_type_typ1
   key_name               = "keyP1"
-  vpc_security_group_ids = ["sg-083cc6502821a7547"]
+  vpc_security_group_ids = [var.sg_typ1]
   tags = {
-    Name = "myEC2-instanz_typ1"
+    Name = "myEC2-typ1: Node Exporter"
   }
 
 }
@@ -19,9 +19,9 @@ resource "aws_instance" "instanz_typ2" {
   ami                    = "ami-0303e2e4a29f041a3"
   instance_type          = var.instance_type_typ2
   key_name               = "keyP1"
-  vpc_security_group_ids = ["sg-083cc6502821a7547"]
+  vpc_security_group_ids = [var.sg_typ2]
   tags = {
-    Name = "myEC2-instanz_typ2"
+    Name = "myEC2-typ2: Monitoring Server"
   }
 
 }
