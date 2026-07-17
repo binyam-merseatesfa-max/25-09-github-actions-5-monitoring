@@ -79,15 +79,21 @@ jobs:
               ssh -i ~/.ssh/myKeys ubuntu@$ip "docker rm -f node-exporter || true; docker run -d --name node-exporter -p 9100:9100 prom/node-exporter"
             done
 
+      - name: build frontend website image
+        run: |
+            docker buildx build -t bt501-frontend-image ./Frontend
+            docker save bt501-frontend-image | gzip > frontend-image.tar.gz
+
       - name: deploy website on typ1
         run: |
             for ip in $(terraform output -json public_ips_typ1 | jq -r ".[]"); do
-              scp -i ~/.ssh/myKeys -r Frontend ubuntu@$ip:/home/ubuntu/
+              scp -i ~/.ssh/myKeys frontend-image.tar.gz ubuntu@$ip:/home/ubuntu/
               ssh -i ~/.ssh/myKeys ubuntu@$ip "
-                docker buildx build --load -t bt501-frontend-image /home/ubuntu/Frontend &&
+                gunzip -c /home/ubuntu/frontend-image.tar.gz | docker load &&
                 docker stop bt501-fe-container || true &&
                 docker rm bt501-fe-container || true &&
-                docker run -d -p 80:80 --name bt501-fe-container bt501-frontend-image
+                docker run -d -p 80:80 --name bt501-fe-container bt501-frontend-image &&
+                rm /home/ubuntu/frontend-image.tar.gz
               "
             done
 
