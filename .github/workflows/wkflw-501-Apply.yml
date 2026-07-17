@@ -82,11 +82,13 @@ jobs:
       - name: deploy website on typ1
         run: |
             for ip in $(terraform output -json public_ips_typ1 | jq -r ".[]"); do
-            scp -i ~/.ssh/myKeys -r Frontend ubuntu@$ip:/home/ubuntu/
-            ssh -i ~/.ssh/myKeys ubuntu@$ip "docker build -t bt501-frontend-image /home/ubuntu/Frontend"
-            ssh -i ~/.ssh/myKeys ubuntu@$ip "docker stop bt501-fe-container || true"
-            ssh -i ~/.ssh/myKeys ubuntu@$ip "docker rm bt501-fe-container || true"
-            ssh -i ~/.ssh/myKeys ubuntu@$ip "docker run -d -p 80:80 --name bt501-fe-container bt501-frontend-image"
+              scp -i ~/.ssh/myKeys -r Frontend ubuntu@$ip:/home/ubuntu/
+              ssh -i ~/.ssh/myKeys ubuntu@$ip "
+                docker buildx build --load -t bt501-frontend-image /home/ubuntu/Frontend &&
+                docker stop bt501-fe-container || true &&
+                docker rm bt501-fe-container || true &&
+                docker run -d -p 80:80 --name bt501-fe-container bt501-frontend-image
+              "
             done
 
       - name: Configure known_hosts (typ2)
