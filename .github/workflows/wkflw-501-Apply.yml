@@ -32,17 +32,6 @@ jobs:
       - name: Terraform Apply
         run: terraform apply --auto-approve
 
-      - name: Ensure jq is installed
-        run: |
-          if ! command -v jq &> /dev/null; then
-            echo "jq not found, installing..."
-            sudo apt-get update -y
-            sudo apt-get install -y jq
-          else
-            echo "jq already installed: $(jq --version)"
-            echo "ips = $(terraform output -json public_ips | jq -r ".[]")"
-          fi
-
       - name: ssh setup
         run: |
             mkdir -p ~/.ssh
@@ -77,9 +66,9 @@ jobs:
             exit 1
           fi
 
-      - name: install docker on ec2 & extend user recht on Docker
+      - name: install docker on ec2 & extend user recht on Docker, on_typ1
         run: |
-            for ip in $(terraform output -json public_ips | jq -r ".[]"); do
+            for ip in $(terraform output -json public_ips_typ1 | jq -r ".[]"); do
             ssh -i ~/.ssh/myKeys ubuntu@$ip "sudo apt update && sudo apt install docker.io -y"
             ssh -i ~/.ssh/myKeys ubuntu@$ip "sudo usermod -aG docker ubuntu"
             done
