@@ -1,0 +1,97 @@
+name: Terraform Apply GitHub-Actions Docker-Website deploy
+
+on: [push,workflow_dispatch]
+
+jobs:
+  Apply-Terraform:
+    runs-on: ubuntu-latest
+
+    if: github.event_name == 'push'
+    steps:
+      - name: Hi test
+        run: |
+          echo "Hi 202 test call, running by push ..."
+          date
+
+      - name: Checkout
+        uses: actions/checkout@v7
+      
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v4
+      
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v6
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: eu-central-1
+      
+      - name: Terraform Init
+        run: terraform init
+            
+      - name: Terraform Apply
+        run: terraform apply --auto-approve
+
+      - name: Ensure jq is installed
+        run: |
+          if ! command -v jq &> /dev/null; then
+            echo "jq not found, installing..."
+            sudo apt-get update -y
+            sudo apt-get install -y jq
+          else
+            echo "jq already installed: $(jq --version)"
+            echo "ips = $(terraform output -json public_ips | jq -r ".[]")"
+          fi
+
+      - name: ssh setup
+        run: |
+            mkdir -p ~/.ssh
+            echo "${{secrets.SSH_PRIVATE_KEY_101}}" > ~/.ssh/myKeys
+            chmod 600 ~/.ssh/myKeys
+
+      - name: Configure known_hosts
+        run: |
+          FAILED_IPS=()
+
+          for ip in $(terraform output -json public_ips | jq -r ".[]"); do
+            echo "Waiting for SSH on $ip..."
+            success=false
+            for i in {1..10}; do
+              if timeout 5 ssh-keyscan -H "$ip" >> ~/.ssh/known_hosts 2>/dev/null; then
+                echo "  $ip is ready"
+                success=true
+                break
+              fi
+              echo "  retry $i/10..."
+              sleep 5
+            done
+
+            if [ "$success" = false ]; then
+              echo "::error::Could not reach $ip after 10 attempts"
+              FAILED_IPS+=("$ip")
+            fi
+          done
+
+          if [ ${#FAILED_IPS[@]} -gt 0 ]; then
+            echo "The following IPs were unreachable: ${FAILED_IPS[*]}"
+            exit 1
+          fi
+
+      - name: install docker on ec2 & extend user recht on Docker
+        run: |
+            for ip in $(terraform output -json public_ips | jq -r ".[]"); do
+            ssh -i ~/.ssh/myKeys ubuntu@$ip "sudo apt update && sudo apt install docker.io -y"
+            ssh -i ~/.ssh/myKeys ubuntu@$ip "sudo usermod -aG docker ubuntu"
+            done
+
+
+
+  Terraform-say-hi-bye:
+        runs-on: ubuntu-latest
+        if: github.event_name == 'workflow_dispatch'
+
+        steps:   
+           - name: Bye
+             run: |
+                echo "Just saying hi & bye, no apply, by workflow_dispatch ..."
+                date
